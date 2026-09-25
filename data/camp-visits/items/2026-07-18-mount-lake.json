@@ -1,0 +1,30 @@
+{
+  "id": "2026-07-18-mount-lake",
+  "startDate": "2026-07-18",
+  "endDate": "2026-07-19",
+  "placeName": "マウントレイクキャンプ場",
+  "siteType": "オートキャンプ",
+  "lat": 34.4176753,
+  "lng": 134.836948,
+  "placeMemo": "正式名称: MOUNT LAKE マウントレイクキャンプ場(兵庫県洲本市五色町鮯原中邂167番地、淡路島)。区画サイトを利用。(チャットから自動登録。緯度経度はエリア中心の自動取得のため要確認)",
+  "weatherLog": [
+    {
+      "timing": "7/18〜19",
+      "weather": "晴れ"
+    }
+  ],
+  "crowdedness": "空いていた",
+  "companions": "家族4人",
+  "gear": [],
+  "meals": "サムギョプサル、そーめん",
+  "campfire": true,
+  "activities": [],
+  "creatures": [],
+  "costs": [],
+  "rating": 3,
+  "relatedBugVisits": [
+    {
+      "visit": "2026-07-18-mount-lake-camp"
+    }
+  ]
+}

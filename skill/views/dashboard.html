@@ -1,0 +1,376 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <style>
+      .viz-root {
+        color-scheme: light;
+        --surface-1: #fcfcfb;
+        --surface-2: #f3f2ef;
+        --text-primary: #0b0b0b;
+        --text-secondary: #52514e;
+        --border: #e3e1db;
+        --series-1: #2a78d6; /* blue */
+        --series-2: #eb6834; /* orange */
+        --series-3: #1baf7a; /* aqua */
+        --series-4: #eda100; /* yellow */
+        --series-5: #e87ba4; /* magenta */
+        --series-6: #008300; /* green */
+        --series-7: #4a3aa7; /* violet */
+        --series-8: #e34948; /* red */
+      }
+      @media (prefers-color-scheme: dark) {
+        .viz-root {
+          color-scheme: dark;
+          --surface-1: #1a1a19;
+          --surface-2: #232322;
+          --text-primary: #ffffff;
+          --text-secondary: #c3c2b7;
+          --border: #38372f;
+          --series-1: #3987e5;
+          --series-2: #d95926;
+          --series-3: #199e70;
+          --series-4: #c98500;
+          --series-5: #d55181;
+          --series-6: #008300;
+          --series-7: #9085e9;
+          --series-8: #e66767;
+        }
+      }
+      * { box-sizing: border-box; }
+      html, body {
+        margin: 0;
+        padding: 0;
+        background: var(--surface-1);
+        color: var(--text-primary);
+        font-family: system-ui, "Hiragino Sans", sans-serif;
+      }
+      body { padding: 16px 20px 32px; }
+      h1 { font-size: 18px; margin: 0 0 4px; }
+      #status { font-size: 12px; color: var(--text-secondary); margin-bottom: 16px; }
+      .tiles {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+        gap: 10px;
+        margin-bottom: 20px;
+      }
+      .tile {
+        background: var(--surface-2);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 12px 14px;
+      }
+      .tile .label { font-size: 12px; color: var(--text-secondary); margin-bottom: 4px; }
+      .tile .value { font-size: 22px; font-weight: 700; }
+      .charts {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+        gap: 18px;
+        margin-bottom: 24px;
+      }
+      .card {
+        background: var(--surface-2);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 14px 16px;
+      }
+      .card h2 { font-size: 14px; margin: 0 0 10px; color: var(--text-primary); }
+      .card .chart-wrap { position: relative; height: 220px; }
+      table.data-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 13px;
+      }
+      table.data-table th, table.data-table td {
+        text-align: right;
+        padding: 6px 8px;
+        border-bottom: 1px solid var(--border);
+      }
+      table.data-table th:first-child, table.data-table td:first-child { text-align: left; }
+      table.data-table thead th { color: var(--text-secondary); font-weight: 600; }
+      .err { color: #d03b3b; padding: 16px; }
+    </style>
+  </head>
+  <body class="viz-root">
+    <h1>キャンプ記録ダッシュボード</h1>
+    <div id="status">読み込み中…</div>
+
+    <div class="tiles" id="tiles"></div>
+
+    <div class="charts">
+      <div class="card">
+        <h2>年別 キャンプ回数・泊数</h2>
+        <div class="chart-wrap"><canvas id="chartYearCounts"></canvas></div>
+      </div>
+      <div class="card">
+        <h2>年別 費用(円)</h2>
+        <div class="chart-wrap"><canvas id="chartYearCost"></canvas></div>
+      </div>
+      <div class="card">
+        <h2>スタイル別 割合</h2>
+        <div class="chart-wrap"><canvas id="chartSiteType"></canvas></div>
+      </div>
+      <div class="card">
+        <h2>費目別 内訳(上位)</h2>
+        <div class="chart-wrap"><canvas id="chartCostItems"></canvas></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>年別サマリー(表)</h2>
+      <table class="data-table" id="yearTable">
+        <thead>
+          <tr><th>年</th><th>回数</th><th>泊数</th><th>費用(円)</th></tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+    <script>
+      const FIELDS = "startDate,endDate,siteType,costs,totalCost,rating,wantToReturn,placeName";
+      const SERIES = ["#2a78d6", "#eb6834", "#1baf7a", "#eda100", "#e87ba4", "#008300", "#4a3aa7", "#e34948"];
+      const SITE_TYPES = ["オートキャンプ", "ソロキャンプ", "バイクキャンプ", "グランピング", "車中泊", "その他"];
+
+      let charts = {};
+
+      function isDark() {
+        return window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
+      }
+
+      function textColor() {
+        return isDark() ? "#ffffff" : "#0b0b0b";
+      }
+      function mutedColor() {
+        return isDark() ? "#c3c2b7" : "#52514e";
+      }
+      function gridColor() {
+        return isDark() ? "#38372f" : "#e3e1db";
+      }
+
+      function statusEl() {
+        return document.getElementById("status");
+      }
+
+      async function load() {
+        const { token, dataUrl } = window.__MC_VIEW;
+        const url = dataUrl + "?fields=" + encodeURIComponent(FIELDS);
+        const res = await fetch(url, { headers: { Authorization: "Bearer " + token } });
+        if (!res.ok) throw new Error("HTTP " + res.status + ": " + (await res.text()));
+        const { items } = await res.json();
+        return items;
+      }
+
+      function nights(it) {
+        if (!it.startDate || !it.endDate) return 0;
+        const s = new Date(it.startDate);
+        const e = new Date(it.endDate);
+        const d = Math.round((e - s) / 86400000);
+        return Math.max(d, 0);
+      }
+
+      function yearOf(it) {
+        return (it.startDate || "").slice(0, 4) || "不明";
+      }
+
+      function aggregate(items) {
+        const byYear = new Map(); // year -> { count, nights, cost }
+        const bySite = new Map(); // siteType -> count
+        const byCostItem = new Map(); // item -> yen
+        let totalCost = 0;
+        let ratingSum = 0;
+        let ratingN = 0;
+        let wantYes = 0;
+        let wantN = 0;
+
+        for (const it of items) {
+          const y = yearOf(it);
+          const n = nights(it) || 1; // day trip counts as 1
+          const cost = Number(it.totalCost) || 0;
+          if (!byYear.has(y)) byYear.set(y, { count: 0, nights: 0, cost: 0 });
+          const yEntry = byYear.get(y);
+          yEntry.count += 1;
+          yEntry.nights += n;
+          yEntry.cost += cost;
+          totalCost += cost;
+
+          const st = it.siteType || "その他";
+          bySite.set(st, (bySite.get(st) || 0) + 1);
+
+          for (const row of it.costs || []) {
+            const item = (row.item || "その他").trim() || "その他";
+            const amt = Number(row.amount) || 0;
+            byCostItem.set(item, (byCostItem.get(item) || 0) + amt);
+          }
+
+          if (typeof it.rating === "number") {
+            ratingSum += it.rating;
+            ratingN += 1;
+          }
+          if (typeof it.wantToReturn === "boolean") {
+            wantN += 1;
+            if (it.wantToReturn) wantYes += 1;
+          }
+        }
+
+        const years = [...byYear.keys()].sort();
+        const totalNights = years.reduce((a, y) => a + byYear.get(y).nights, 0);
+
+        return {
+          years,
+          byYear,
+          bySite,
+          byCostItem,
+          totals: {
+            trips: items.length,
+            nights: totalNights,
+            cost: totalCost,
+            avgRating: ratingN ? (ratingSum / ratingN).toFixed(1) : "—",
+            wantRate: wantN ? Math.round((wantYes / wantN) * 100) + "%" : "—",
+          },
+        };
+      }
+
+      function renderTiles(agg) {
+        const tiles = [
+          { label: "総キャンプ回数", value: agg.totals.trips + " 回" },
+          { label: "総泊数", value: agg.totals.nights + " 泊" },
+          { label: "総費用", value: "¥" + agg.totals.cost.toLocaleString() },
+          { label: "平均満足度", value: agg.totals.avgRating + (agg.totals.avgRating !== "—" ? " / 5" : "") },
+          { label: "また行きたい率", value: agg.totals.wantRate },
+        ];
+        document.getElementById("tiles").innerHTML = tiles
+          .map((t) => '<div class="tile"><div class="label">' + t.label + '</div><div class="value">' + t.value + "</div></div>")
+          .join("");
+      }
+
+      function renderYearTable(agg) {
+        const body = agg.years
+          .map((y) => {
+            const e = agg.byYear.get(y);
+            return "<tr><td>" + y + "</td><td>" + e.count + "</td><td>" + e.nights + "</td><td>" + e.cost.toLocaleString() + "</td></tr>";
+          })
+          .join("");
+        document.querySelector("#yearTable tbody").innerHTML = body || '<tr><td colspan="4">データなし</td></tr>';
+      }
+
+      function destroyCharts() {
+        Object.values(charts).forEach((c) => c && c.destroy());
+        charts = {};
+      }
+
+      function renderCharts(agg) {
+        const tc = textColor();
+        const mc = mutedColor();
+        const gc = gridColor();
+        Chart.defaults.color = mc;
+        Chart.defaults.borderColor = gc;
+        Chart.defaults.font.family = "system-ui, 'Hiragino Sans', sans-serif";
+
+        // 年別 回数・泊数 (grouped bar, same "count-ish" scale)
+        charts.yearCounts = new Chart(document.getElementById("chartYearCounts"), {
+          type: "bar",
+          data: {
+            labels: agg.years,
+            datasets: [
+              { label: "回数", data: agg.years.map((y) => agg.byYear.get(y).count), backgroundColor: SERIES[0], borderRadius: 4, maxBarThickness: 28 },
+              { label: "泊数", data: agg.years.map((y) => agg.byYear.get(y).nights), backgroundColor: SERIES[1], borderRadius: 4, maxBarThickness: 28 },
+            ],
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: true, labels: { color: tc } } },
+            scales: {
+              x: { grid: { display: false } },
+              y: { beginAtZero: true, ticks: { precision: 0 } },
+            },
+          },
+        });
+
+        // 年別 費用
+        charts.yearCost = new Chart(document.getElementById("chartYearCost"), {
+          type: "bar",
+          data: {
+            labels: agg.years,
+            datasets: [{ label: "費用(円)", data: agg.years.map((y) => agg.byYear.get(y).cost), backgroundColor: SERIES[0], borderRadius: 4, maxBarThickness: 36 }],
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: {
+              x: { grid: { display: false } },
+              y: { beginAtZero: true, ticks: { callback: (v) => "¥" + Number(v).toLocaleString() } },
+            },
+          },
+        });
+
+        // スタイル別割合 (donut, fixed enum order)
+        const siteLabels = SITE_TYPES.filter((s) => agg.bySite.has(s)).concat([...agg.bySite.keys()].filter((k) => !SITE_TYPES.includes(k)));
+        charts.siteType = new Chart(document.getElementById("chartSiteType"), {
+          type: "doughnut",
+          data: {
+            labels: siteLabels,
+            datasets: [{ data: siteLabels.map((s) => agg.bySite.get(s) || 0), backgroundColor: siteLabels.map((_, i) => SERIES[i % SERIES.length]), borderColor: isDark() ? "#1a1a19" : "#fcfcfb", borderWidth: 2 }],
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: true, position: "right", labels: { color: tc, boxWidth: 12 } } },
+          },
+        });
+
+        // 費目別内訳 (top 6 + その他)
+        const sortedCosts = [...agg.byCostItem.entries()].sort((a, b) => b[1] - a[1]);
+        const top = sortedCosts.slice(0, 6);
+        const restSum = sortedCosts.slice(6).reduce((a, [, v]) => a + v, 0);
+        if (restSum > 0) top.push(["その他", restSum]);
+        charts.costItems = new Chart(document.getElementById("chartCostItems"), {
+          type: "bar",
+          data: {
+            labels: top.map(([k]) => k),
+            datasets: [{ label: "費用(円)", data: top.map(([, v]) => v), backgroundColor: top.map((_, i) => SERIES[i % SERIES.length]), borderRadius: 4 }],
+          },
+          options: {
+            indexAxis: "y",
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: {
+              x: { beginAtZero: true, ticks: { callback: (v) => "¥" + Number(v).toLocaleString() } },
+              y: { grid: { display: false } },
+            },
+          },
+        });
+      }
+
+      function render(items) {
+        const agg = aggregate(items);
+        renderTiles(agg);
+        renderYearTable(agg);
+        destroyCharts();
+        renderCharts(agg);
+        statusEl().textContent = items.length + " 件の記録 / " + agg.years.length + " 年分";
+      }
+
+      async function main() {
+        const items = await load();
+        render(items);
+      }
+
+      main().catch((e) => {
+        document.body.innerHTML = '<div class="err">読み込みに失敗しました: ' + (e && e.message ? e.message : e) + "</div>";
+      });
+
+      window.__MC_VIEW.onChange(async () => {
+        try {
+          const items = await load();
+          render(items);
+        } catch (e) {
+          // keep last good render on transient errors
+        }
+      });
+    </script>
+  </body>
+</html>

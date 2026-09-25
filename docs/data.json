@@ -1,0 +1,92 @@
+[
+  {
+    "siteType": "オートキャンプ",
+    "crowdedness": "普通",
+    "id": "2025-11-15-hyggebase",
+    "startDate": "2025-11-15",
+    "endDate": "2025-11-16",
+    "placeName": "HyggeBASE",
+    "lat": 35.607463,
+    "lng": 134.891294,
+    "placeMemo": "正式名称: HyggeBASE京丹後(オートキャンプ場・RVパーク併設、京都府京丹後市久美浜町1314)。(チャットから自動登録。緯度経度はエリア中心の自動取得のため要確認)",
+    "weatherLog": [
+      {
+        "timing": "11/15〜16",
+        "weather": "晴れ"
+      }
+    ],
+    "companions": "白石家の4人(祖父母・まりな・ココちゃん)",
+    "meals": "すき焼き、塩元帥の袋麦"
+  },
+  {
+    "id": "2026-07-18-mount-lake",
+    "startDate": "2026-07-18",
+    "endDate": "2026-07-19",
+    "placeName": "マウントレイクキャンプ場",
+    "siteType": "オートキャンプ",
+    "lat": 34.4176753,
+    "lng": 134.836948,
+    "placeMemo": "正式名称: MOUNT LAKE マウントレイクキャンプ場(兵庫県洲本市五色町鮯原中邂167番地、淡路島)。区画サイトを利用。(チャットから自動登録。緯度経度はエリア中心の自動取得のため要確認)",
+    "weatherLog": [
+      {
+        "timing": "7/18〜19",
+        "weather": "晴れ"
+      }
+    ],
+    "crowdedness": "空いていた",
+    "companions": "家族4人",
+    "gear": [],
+    "meals": "サムギョプサル、そーめん",
+    "campfire": true,
+    "activities": [],
+    "creatures": [],
+    "costs": [],
+    "rating": 3,
+    "relatedBugVisits": [
+      {
+        "visit": "2026-07-18-mount-lake-camp"
+      }
+    ]
+  },
+  {
+    "id": "2026-09-19-yamamori-circuit",
+    "startDate": "2026-09-19",
+    "endDate": "2026-09-20",
+    "placeName": "やまもりサーキット",
+    "siteType": "オートキャンプ",
+    "lat": 35.1688774,
+    "lng": 135.2786281,
+    "placeMemo": "正式名称: 丹波篠山キャンプ場 やまもりサーキット(兵庫県丹波篠山市遠方41-1)。区画サイトを利用。(チャットから自動登録。緯度経度はエリア中心の自動取得のため要確認)",
+    "weatherLog": [
+      {
+        "timing": "9/19 昼",
+        "weather": "晴れ"
+      },
+      {
+        "timing": "9/19 夜",
+        "weather": "雨"
+      }
+    ],
+    "crowdedness": "普通",
+    "companions": "妻の父(子どもから見て母方の祖父)",
+    "gear": [
+      {
+        "item": "テント",
+        "note": "2張"
+      }
+    ],
+    "meals": "自炊: ブロッコリー・エビ・アボカドのアヒージョ、ペッパーランチ、ハムとチーズのパンと目玉焼き / 外食: 十割蕎麦",
+    "campfire": true,
+    "activities": [],
+    "creatures": [],
+    "costs": [],
+    "rating": 5,
+    "wantToReturn": true,
+    "memo": "苝生とトイレが綺麗。自然も程よくある。",
+    "relatedBugVisits": [
+      {
+        "visit": "2026-09-19-yamamori-circuit"
+      }
+    ]
+  }
+]

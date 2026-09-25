@@ -1,0 +1,226 @@
+{
+  "title": "キャンプ記録",
+  "color": "emerald",
+  "icon": "cabin",
+  "dataPath": "data/camp-visits/items",
+  "primaryKey": "id",
+  "fields": {
+    "id": {
+      "type": "string",
+      "label": "ID",
+      "primary": true
+    },
+    "startDate": {
+      "type": "date",
+      "label": "開始日",
+      "required": true
+    },
+    "endDate": {
+      "type": "date",
+      "label": "終了日",
+      "required": true
+    },
+    "placeName": {
+      "type": "string",
+      "label": "キャンプ場名",
+      "required": true
+    },
+    "siteType": {
+      "type": "enum",
+      "label": "スタイル",
+      "values": [
+        "オートキャンプ",
+        "ソロキャンプ",
+        "バイクキャンプ",
+        "グランピング",
+        "車中泊",
+        "その他"
+      ],
+      "default": "オートキャンプ"
+    },
+    "lat": {
+      "type": "number",
+      "label": "緯度 (lat)",
+      "required": true
+    },
+    "lng": {
+      "type": "number",
+      "label": "経度 (lng)",
+      "required": true
+    },
+    "placeMemo": {
+      "type": "text",
+      "label": "場所のメモ(アクセス・予約サイト等)"
+    },
+    "weatherLog": {
+      "type": "table",
+      "label": "天気の記録",
+      "of": {
+        "timing": {
+          "type": "string",
+          "label": "いつ(日付・時間帯)"
+        },
+        "weather": {
+          "type": "enum",
+          "label": "天気",
+          "values": [
+            "晴れ",
+            "晴れときどきくもり",
+            "くもり",
+            "雨",
+            "雪",
+            "不明"
+          ]
+        }
+      }
+    },
+    "temperature": {
+      "type": "number",
+      "label": "気温(℃)"
+    },
+    "crowdedness": {
+      "type": "enum",
+      "label": "混雑度",
+      "values": [
+        "空いていた",
+        "普通",
+        "混んでいた",
+        "不明"
+      ],
+      "default": "普通"
+    },
+    "companions": {
+      "type": "string",
+      "label": "同行者"
+    },
+    "gear": {
+      "type": "table",
+      "label": "持ち物・装備",
+      "of": {
+        "item": {
+          "type": "string",
+          "label": "品目"
+        },
+        "note": {
+          "type": "string",
+          "label": "メモ"
+        }
+      }
+    },
+    "meals": {
+      "type": "text",
+      "label": "食事・料理"
+    },
+    "campfire": {
+      "type": "boolean",
+      "label": "焚き火をした"
+    },
+    "campfireNote": {
+      "type": "text",
+      "label": "焚き火の内容",
+      "when": {
+        "field": "campfire",
+        "in": [
+          "true"
+        ]
+      }
+    },
+    "activities": {
+      "type": "table",
+      "label": "遊んだこと・アクティビティ",
+      "of": {
+        "activity": {
+          "type": "enum",
+          "label": "アクティビティ",
+          "values": [
+            "川遊び",
+            "釣り",
+            "ハイキング",
+            "星空観察",
+            "花火",
+            "サイクリング",
+            "ボードゲーム",
+            "虫とり",
+            "その他"
+          ]
+        },
+        "note": {
+          "type": "string",
+          "label": "メモ"
+        }
+      }
+    },
+    "relatedBugVisits": {
+      "type": "table",
+      "label": "関連するむしとり記録",
+      "of": {
+        "visit": {
+          "type": "ref",
+          "label": "むしとり記録",
+          "to": "bug-visits"
+        }
+      }
+    },
+    "costs": {
+      "type": "table",
+      "label": "費用",
+      "of": {
+        "item": {
+          "type": "string",
+          "label": "費目"
+        },
+        "amount": {
+          "type": "money",
+          "label": "金額",
+          "currency": "JPY"
+        }
+      }
+    },
+    "totalCost": {
+      "type": "derived",
+      "label": "費用合計",
+      "formula": "sum(costs[].amount)",
+      "display": "money",
+      "currency": "JPY"
+    },
+    "rating": {
+      "type": "number",
+      "label": "満足度(1-5)"
+    },
+    "wantToReturn": {
+      "type": "boolean",
+      "label": "また行きたい"
+    },
+    "photo": {
+      "type": "image",
+      "label": "写真"
+    },
+    "memo": {
+      "type": "text",
+      "label": "感想・メモ"
+    }
+  },
+  "displayField": "placeName",
+  "calendarField": "startDate",
+  "calendarEndField": "endDate",
+  "views": [
+    {
+      "id": "map",
+      "label": "地図",
+      "icon": "map",
+      "file": "views/map.html",
+      "capabilities": [
+        "read"
+      ]
+    },
+    {
+      "id": "dashboard",
+      "label": "ダッシュボード",
+      "icon": "bar_chart",
+      "file": "views/dashboard.html",
+      "capabilities": [
+        "read"
+      ]
+    }
+  ]
+}

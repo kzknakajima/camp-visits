@@ -1,0 +1,204 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+      html, body, #map {
+        height: 100%;
+        margin: 0;
+        padding: 0;
+        font-family: system-ui, sans-serif;
+      }
+      #status {
+        position: absolute;
+        top: 8px;
+        left: 8px;
+        z-index: 1000;
+        background: rgba(255, 255, 255, 0.9);
+        border-radius: 6px;
+        padding: 4px 10px;
+        font-size: 12px;
+        color: #64748b;
+      }
+      .popup-title {
+        font-weight: 700;
+        font-size: 14px;
+        margin-bottom: 2px;
+      }
+      .popup-type {
+        color: #64748b;
+        font-size: 12px;
+        margin-bottom: 6px;
+      }
+      .popup-visits {
+        font-size: 12px;
+        color: #1e293b;
+        margin-bottom: 4px;
+        font-weight: 600;
+      }
+      .popup-datelist {
+        max-height: 120px;
+        overflow-y: auto;
+        margin-bottom: 6px;
+      }
+      .popup-date {
+        font-size: 12px;
+        color: #0369a1;
+        cursor: pointer;
+        text-decoration: underline;
+        display: block;
+        padding: 1px 0;
+      }
+      .popup-actions {
+        display: flex;
+        gap: 6px;
+        flex-wrap: wrap;
+      }
+      .popup-btn {
+        display: inline-block;
+        font-size: 12px;
+        background: #4285f4;
+        color: #fff;
+        border: none;
+        border-radius: 4px;
+        padding: 4px 8px;
+        cursor: pointer;
+        text-decoration: none;
+      }
+      .err {
+        color: #b91c1c;
+        padding: 16px;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="status">読み込み中…</div>
+    <div id="map"></div>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+      const FIELDS = "startDate,endDate,placeName,siteType,lat,lng";
+      const TYPE_COLOR = {
+        オートキャンプ: "#059669",
+        ソロキャンプ: "#2563eb",
+        バイクキャンプ: "#dc2626",
+        グランピング: "#d97706",
+        車中泊: "#7c3aed",
+        その他: "#334155",
+      };
+
+      let map;
+      let markersLayer;
+
+      function initMap() {
+        map = L.map("map").setView([35.681236, 139.767125], 8); // fallback: Tokyo Station
+        L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+          maxZoom: 19,
+          attribution: "&copy; OpenStreetMap contributors",
+        }).addTo(map);
+        markersLayer = L.layerGroup().addTo(map);
+      }
+
+      function statusEl() {
+        return document.getElementById("status");
+      }
+
+      async function load() {
+        const { token, dataUrl } = window.__MC_VIEW;
+        const url = dataUrl + "?fields=" + encodeURIComponent(FIELDS);
+        const res = await fetch(url, { headers: { Authorization: "Bearer " + token } });
+        if (!res.ok) throw new Error("HTTP " + res.status + ": " + (await res.text()));
+        const { items } = await res.json();
+        return items;
+      }
+
+      // Group visit records into one pin per campsite (same name + coordinates
+      // rounded to ~1m so tiny float differences still merge).
+      function groupByPlace(items) {
+        const groups = new Map();
+        for (const it of items) {
+          const lat = Number(it.lat);
+          const lng = Number(it.lng);
+          if (!Number.isFinite(lat) || !Number.isFinite(lng)) continue;
+          const key = (it.placeName || "") + "|" + lat.toFixed(5) + "|" + lng.toFixed(5);
+          if (!groups.has(key)) {
+            groups.set(key, { placeName: it.placeName, siteType: it.siteType, lat, lng, visits: [] });
+          }
+          groups.get(key).visits.push({ id: it.id, startDate: it.startDate, endDate: it.endDate });
+        }
+        for (const g of groups.values()) {
+          g.visits.sort((a, b) => (a.startDate < b.startDate ? 1 : -1)); // newest first
+        }
+        return [...groups.values()];
+      }
+
+      function formatRange(v) {
+        if (v.endDate && v.endDate !== v.startDate) return v.startDate + " 〜 " + v.endDate;
+        return v.startDate;
+      }
+
+      function render(items) {
+        markersLayer.clearLayers();
+        const groups = groupByPlace(items);
+        const pts = [];
+        for (const g of groups) {
+          pts.push([g.lat, g.lng]);
+          const color = TYPE_COLOR[g.siteType] || "#334155";
+          const marker = L.circleMarker([g.lat, g.lng], {
+            radius: 9,
+            color: "#fff",
+            weight: 2,
+            fillColor: color,
+            fillOpacity: 0.9,
+          }).addTo(markersLayer);
+          const gmapsUrl = "https://www.google.com/maps/search/?api=1&query=" + g.lat + "," + g.lng;
+          const dateItems = g.visits
+            .map((v) => '<span class="popup-date" data-id="' + escapeHtml(v.id) + '">' + escapeHtml(formatRange(v)) + "</span>")
+            .join("");
+          const html =
+            '<div class="popup-title">' + escapeHtml(g.placeName || "") + "</div>" +
+            '<div class="popup-type">' + escapeHtml(g.siteType || "") + "</div>" +
+            '<div class="popup-visits">訪問回数: ' + g.visits.length + " 回</div>" +
+            '<div class="popup-datelist">' + dateItems + "</div>" +
+            '<div class="popup-actions">' +
+            '<a class="popup-btn" href="' + gmapsUrl + '" target="_blank" rel="noopener">Googleマップで開く</a>' +
+            "</div>";
+          marker.bindPopup(html);
+          marker.on("popupopen", (e) => {
+            const el = e.popup.getElement();
+            el.querySelectorAll(".popup-date").forEach((dateEl) => {
+              dateEl.onclick = () => window.__MC_VIEW.openItem(dateEl.dataset.id);
+            });
+          });
+        }
+        if (pts.length) {
+          map.fitBounds(pts, { padding: [40, 40], maxZoom: 13 });
+        }
+        statusEl().textContent = groups.length + " か所 / " + items.length + " 件の記録";
+      }
+
+      function escapeHtml(s) {
+        return String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+      }
+
+      async function main() {
+        initMap();
+        const items = await load();
+        render(items);
+      }
+
+      main().catch((e) => {
+        document.body.innerHTML = '<div class="err">読み込みに失敗しました: ' + (e && e.message ? e.message : e) + "</div>";
+      });
+
+      window.__MC_VIEW.onChange(async () => {
+        try {
+          const items = await load();
+          render(items);
+        } catch (e) {
+          // keep last good render on transient errors
+        }
+      });
+    </script>
+  </body>
+</html>

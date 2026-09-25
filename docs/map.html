@@ -1,0 +1,225 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#0f172a" />
+    <title>キャンプ地図</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+      * {
+        -webkit-tap-highlight-color: transparent;
+      }
+      html, body, #map {
+        height: 100%;
+        margin: 0;
+        padding: 0;
+        font-family: -apple-system, system-ui, sans-serif;
+      }
+      #status {
+        position: absolute;
+        top: calc(10px + env(safe-area-inset-top, 0px));
+        left: calc(10px + env(safe-area-inset-left, 0px));
+        z-index: 1000;
+        background: rgba(255, 255, 255, 0.95);
+        border-radius: 8px;
+        padding: 6px 12px;
+        font-size: 12.5px;
+        color: #64748b;
+        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
+      }
+      #back {
+        position: absolute;
+        top: calc(10px + env(safe-area-inset-top, 0px));
+        right: calc(10px + env(safe-area-inset-right, 0px));
+        z-index: 1000;
+        background: rgba(255, 255, 255, 0.95);
+        border-radius: 8px;
+        padding: 9px 14px;
+        min-height: 20px;
+        font-size: 13px;
+        font-weight: 600;
+        color: #1e293b;
+        text-decoration: none;
+        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
+        touch-action: manipulation;
+      }
+      .popup-title {
+        font-weight: 700;
+        font-size: 15px;
+        margin-bottom: 2px;
+      }
+      .popup-type {
+        color: #64748b;
+        font-size: 12.5px;
+        margin-bottom: 6px;
+      }
+      .popup-visits {
+        font-size: 12.5px;
+        color: #1e293b;
+        margin-bottom: 4px;
+        font-weight: 600;
+      }
+      .popup-datelist {
+        max-height: 140px;
+        overflow-y: auto;
+        margin-bottom: 8px;
+      }
+      .popup-date {
+        font-size: 13px;
+        color: #0369a1;
+        cursor: pointer;
+        text-decoration: underline;
+        display: block;
+        padding: 4px 0;
+      }
+      .popup-actions {
+        display: flex;
+        gap: 6px;
+        flex-wrap: wrap;
+      }
+      .popup-btn {
+        display: inline-block;
+        font-size: 13px;
+        font-weight: 600;
+        background: #4285f4;
+        color: #fff;
+        border: none;
+        border-radius: 6px;
+        padding: 7px 12px;
+        cursor: pointer;
+        text-decoration: none;
+        touch-action: manipulation;
+      }
+      .leaflet-popup-content {
+        margin: 12px 14px;
+        min-width: 160px;
+      }
+      .err {
+        color: #b91c1c;
+        padding: 16px;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="status">読み込み中…</div>
+    <a id="back" href="./index.html">一覧に戻る</a>
+    <div id="map"></div>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="./detail.js"></script>
+    <script>
+      const SITE_COLOR = {
+        オートキャンプ: "#2a78d6",
+        ソロキャンプ: "#eb6834",
+        バイクキャンプ: "#1baf7a",
+        グランピング: "#eda100",
+        車中泊: "#e87ba4",
+        その他: "#008300",
+      };
+
+      let map;
+      let markersLayer;
+
+      function initMap() {
+        map = L.map("map").setView([35.681236, 139.767125], 8); // fallback: Tokyo Station
+        L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+          maxZoom: 19,
+          attribution: "&copy; OpenStreetMap contributors",
+        }).addTo(map);
+        markersLayer = L.layerGroup().addTo(map);
+      }
+
+      function statusEl() {
+        return document.getElementById("status");
+      }
+
+      function formatDate(d) {
+        if (!d) return "";
+        const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(d);
+        if (!m) return d;
+        return m[1] + "/" + Number(m[2]) + "/" + Number(m[3]);
+      }
+
+      function formatRange(v) {
+        const s = formatDate(v.startDate);
+        const e = formatDate(v.endDate);
+        if (e && e !== s) return s + " 〜 " + e;
+        return s;
+      }
+
+      // Group visit records into one pin per campsite (same name + coordinates
+      // rounded to ~1m so tiny float differences still merge).
+      function groupByPlace(items) {
+        const groups = new Map();
+        for (const it of items) {
+          const lat = Number(it.lat);
+          const lng = Number(it.lng);
+          if (!Number.isFinite(lat) || !Number.isFinite(lng)) continue;
+          const key = (it.placeName || "") + "|" + lat.toFixed(5) + "|" + lng.toFixed(5);
+          if (!groups.has(key)) {
+            groups.set(key, { placeName: it.placeName, siteType: it.siteType, lat, lng, visits: [] });
+          }
+          groups.get(key).visits.push({ id: it.id, startDate: it.startDate, endDate: it.endDate });
+        }
+        for (const g of groups.values()) {
+          g.visits.sort((a, b) => (a.startDate < b.startDate ? 1 : -1)); // newest first
+        }
+        return [...groups.values()];
+      }
+
+      function render(items) {
+        markersLayer.clearLayers();
+        const groups = groupByPlace(items);
+        const pts = [];
+        for (const g of groups) {
+          pts.push([g.lat, g.lng]);
+          const color = SITE_COLOR[g.siteType] || "#334155";
+          const marker = L.circleMarker([g.lat, g.lng], {
+            radius: 9,
+            color: "#fff",
+            weight: 2,
+            fillColor: color,
+            fillOpacity: 0.9,
+          }).addTo(markersLayer);
+          const gmapsUrl = "https://www.google.com/maps/search/?api=1&query=" + g.lat + "," + g.lng;
+          const dateItems = g.visits
+            .map((v) => '<span class="popup-date" data-id="' + escapeHtml(v.id) + '">' + escapeHtml(formatRange(v)) + "</span>")
+            .join("");
+          const html =
+            '<div class="popup-title">' + escapeHtml(g.placeName || "") + "</div>" +
+            '<div class="popup-type">' + escapeHtml(g.siteType || "") + "</div>" +
+            '<div class="popup-visits">訪問回数: ' + g.visits.length + " 回</div>" +
+            '<div class="popup-datelist">' + dateItems + "</div>" +
+            '<div class="popup-actions">' +
+            '<a class="popup-btn" href="' + gmapsUrl + '" target="_blank" rel="noopener">Googleマップで開く</a>' +
+            "</div>";
+          marker.bindPopup(html);
+          marker.on("popupopen", (e) => {
+            const el = e.popup.getElement();
+            el.querySelectorAll(".popup-date").forEach((dateEl) => {
+              dateEl.onclick = () => window.openRecordById(dateEl.dataset.id);
+            });
+          });
+        }
+        if (pts.length) {
+          map.fitBounds(pts, { padding: [40, 40], maxZoom: 13 });
+        }
+        statusEl().textContent = groups.length + " か所 / " + items.length + " 件の記録";
+      }
+
+      function escapeHtml(s) {
+        return String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+      }
+
+      async function main() {
+        initMap();
+        const items = await window.loadCampVisits();
+        render(items);
+      }
+
+      main().catch((e) => {
+        document.body.innerHTML = '<div class="err">読み込みに失敗しました: ' + (e && e.message ? e.message : e) + "</div>";
+      });
+    </script>
+  </body>
+</html>

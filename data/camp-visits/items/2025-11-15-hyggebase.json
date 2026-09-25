@@ -1,0 +1,19 @@
+{
+  "siteType": "オートキャンプ",
+  "crowdedness": "普通",
+  "id": "2025-11-15-hyggebase",
+  "startDate": "2025-11-15",
+  "endDate": "2025-11-16",
+  "placeName": "HyggeBASE",
+  "lat": 35.607463,
+  "lng": 134.891294,
+  "placeMemo": "正式名称: HyggeBASE京丹後(オートキャンプ場・RVパーク併設、京都府京丹後市久美浜町1314)。(チャットから自動登録。緯度経度はエリア中心の自動取得のため要確認)",
+  "weatherLog": [
+    {
+      "timing": "11/15〜16",
+      "weather": "晴れ"
+    }
+  ],
+  "companions": "白石家の4人(祖父母・まりな・ココちゃん)",
+  "meals": "すき焼き、塩元帥の袋麦"
+}

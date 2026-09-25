@@ -1,0 +1,318 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#0f172a" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <title>キャンプ記録</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --sat: env(safe-area-inset-top, 0px);
+        --sab: env(safe-area-inset-bottom, 0px);
+        --sal: env(safe-area-inset-left, 0px);
+        --sar: env(safe-area-inset-right, 0px);
+      }
+      * {
+        box-sizing: border-box;
+        -webkit-tap-highlight-color: transparent;
+      }
+      html, body {
+        margin: 0;
+        padding: 0;
+        font-family: -apple-system, system-ui, "Hiragino Sans", sans-serif;
+        background: #f1f5f9;
+        color: #0f172a;
+        overscroll-behavior-y: contain;
+      }
+      #topbar {
+        position: sticky;
+        top: 0;
+        z-index: 10;
+        background: linear-gradient(180deg, #064e3b, #0f172a);
+        color: #fff;
+        padding: calc(14px + var(--sat)) calc(18px + var(--sar)) 16px calc(18px + var(--sal));
+      }
+      #topbar h1 {
+        font-size: 19px;
+        margin: 0 0 2px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      #topbar .stats {
+        font-size: 13px;
+        color: #cbd5e1;
+      }
+      #root {
+        max-width: 560px;
+        margin: 0 auto;
+        padding: 14px calc(14px + var(--sar)) calc(28px + var(--sab)) calc(14px + var(--sal));
+      }
+      .nav {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 10px;
+        margin: 2px 0 22px;
+      }
+      .nav a {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 2px;
+        background: #fff;
+        border: 1px solid #e2e8f0;
+        border-radius: 14px;
+        padding: 16px 14px;
+        min-height: 84px;
+        text-decoration: none;
+        color: #0f172a;
+        box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
+        -webkit-user-select: none;
+        user-select: none;
+        touch-action: manipulation;
+      }
+      .nav a:active {
+        background: #f8fafc;
+        transform: scale(0.98);
+      }
+      .nav a .emoji {
+        font-size: 24px;
+        line-height: 1;
+      }
+      .nav a .label {
+        font-weight: 700;
+        font-size: 15px;
+        margin-top: 4px;
+      }
+      .nav a .desc {
+        font-size: 11.5px;
+        color: #64748b;
+      }
+      .section-label {
+        font-size: 12px;
+        font-weight: 700;
+        color: #64748b;
+        letter-spacing: 0.02em;
+        margin: 4px 4px 8px;
+        text-transform: uppercase;
+      }
+      .cards {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+      .card {
+        background: #fff;
+        border-radius: 14px;
+        padding: 13px 14px;
+        box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
+        touch-action: manipulation;
+        -webkit-user-select: none;
+        user-select: none;
+      }
+      .card:active {
+        background: #f8fafc;
+      }
+      .card-top {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        margin-bottom: 8px;
+      }
+      .card-place {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        min-width: 0;
+      }
+      .spot-dot {
+        width: 9px;
+        height: 9px;
+        border-radius: 50%;
+        flex: none;
+      }
+      .card-place .name {
+        font-weight: 700;
+        font-size: 15px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .card-meta {
+        flex: none;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 12px;
+        color: #64748b;
+      }
+      .weather-emoji {
+        font-size: 14px;
+      }
+      .chips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 5px;
+      }
+      .chip {
+        font-size: 11.5px;
+        border-radius: 999px;
+        padding: 3px 9px;
+        font-weight: 600;
+        white-space: nowrap;
+      }
+      .chip.style {
+        background: #dcfce7;
+        color: #166534;
+      }
+      .chip.fire {
+        background: #ffedd5;
+        color: #9a3412;
+      }
+      .chip.rating {
+        background: #fef9c3;
+        color: #854d0e;
+      }
+      .chip.again {
+        background: #e0e7ff;
+        color: #3730a3;
+      }
+      .empty-note {
+        font-size: 12px;
+        color: #94a3b8;
+      }
+      .err {
+        color: #b91c1c;
+        padding: 16px;
+        font-size: 14px;
+      }
+      .loading {
+        padding: 24px 4px;
+        color: #64748b;
+        font-size: 14px;
+        text-align: center;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="topbar">
+      <h1>🏕️ キャンプ記録</h1>
+      <div class="stats" id="stats">読み込み中…</div>
+    </div>
+    <div id="root">
+      <div class="nav">
+        <a href="./calendar.html">
+          <span class="emoji">📅</span>
+          <span class="label">カレンダー</span>
+          <span class="desc">日付から記録を探す</span>
+        </a>
+        <a href="./map.html">
+          <span class="emoji">🗺️</span>
+          <span class="label">地図</span>
+          <span class="desc">訪れたキャンプ場をピンで表示</span>
+        </a>
+        <a href="./dashboard.html">
+          <span class="emoji">📊</span>
+          <span class="label">ダッシュボード</span>
+          <span class="desc">回数・費用・スタイルの集計</span>
+        </a>
+      </div>
+      <div class="section-label">記録一覧</div>
+      <div class="cards" id="cards">
+        <div class="loading">読み込み中…</div>
+      </div>
+    </div>
+    <script src="./detail.js"></script>
+    <script>
+      const SITE_COLOR = {
+        オートキャンプ: "#2a78d6",
+        ソロキャンプ: "#eb6834",
+        バイクキャンプ: "#1baf7a",
+        グランピング: "#eda100",
+        車中泊: "#e87ba4",
+        その他: "#008300",
+      };
+      const WEATHER_EMOJI = {
+        晴れ: "☀️",
+        "晴れときどきくもり": "🌤️",
+        くもり: "☁️",
+        雨: "☔️",
+        雪: "❄️",
+        不明: "❓",
+      };
+
+      function escapeHtml(s) {
+        return String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+      }
+
+      function formatDate(d) {
+        if (!d) return "";
+        const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(d);
+        if (!m) return d;
+        return m[1] + "/" + Number(m[2]) + "/" + Number(m[3]);
+      }
+
+      function formatRange(it) {
+        const s = formatDate(it.startDate);
+        const e = formatDate(it.endDate);
+        if (e && e !== s) return s + "〜" + e;
+        return s;
+      }
+
+      function weatherEmoji(it) {
+        const rows = it.weatherLog || [];
+        if (!rows.length) return "";
+        const first = WEATHER_EMOJI[rows[0].weather] || "";
+        return first + (rows.length > 1 ? "+" : "");
+      }
+
+      function chipsHtml(it) {
+        const chips = [];
+        if (it.siteType) chips.push('<span class="chip style">' + escapeHtml(it.siteType) + "</span>");
+        if (it.campfire) chips.push('<span class="chip fire">🔥 焚き火</span>');
+        if (typeof it.rating === "number") chips.push('<span class="chip rating">★' + it.rating + "</span>");
+        if (it.wantToReturn) chips.push('<span class="chip again">👍 また行きたい</span>');
+        return chips.join("");
+      }
+
+      async function main() {
+        const items = await window.loadCampVisits();
+        const sorted = items.slice().sort((a, b) => (a.startDate < b.startDate ? 1 : -1));
+        document.getElementById("stats").textContent = sorted.length + " 回のキャンプを記録中";
+
+        const cardsEl = document.getElementById("cards");
+        cardsEl.innerHTML = sorted
+          .map((it) => {
+            const dot = SITE_COLOR[it.siteType] || "#94a3b8";
+            const weather = weatherEmoji(it);
+            const chips = chipsHtml(it);
+            return (
+              '<div class="card" data-id="' + escapeHtml(it.id) + '">' +
+              '<div class="card-top">' +
+              '<div class="card-place">' +
+              '<span class="spot-dot" style="background:' + dot + '"></span>' +
+              '<span class="name">' + escapeHtml(it.placeName || "") + "</span>" +
+              "</div>" +
+              '<div class="card-meta"><span class="weather-emoji">' + weather + "</span><span>" + escapeHtml(formatRange(it)) + "</span></div>" +
+              "</div>" +
+              (chips ? '<div class="chips">' + chips + "</div>" : '<div class="empty-note">詳細未記入</div>') +
+              "</div>"
+            );
+          })
+          .join("");
+
+        cardsEl.querySelectorAll(".card").forEach((card) => {
+          card.onclick = () => window.openRecordById(card.dataset.id);
+        });
+      }
+
+      main().catch((e) => {
+        document.getElementById("cards").innerHTML = '<div class="err">読み込みに失敗しました: ' + (e && e.message ? e.message : e) + "</div>";
+      });
+    </script>
+  </body>
+</html>

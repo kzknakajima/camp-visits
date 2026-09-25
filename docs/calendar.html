@@ -1,0 +1,433 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#0f172a" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <title>キャンプカレンダー</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --sat: env(safe-area-inset-top, 0px);
+        --sab: env(safe-area-inset-bottom, 0px);
+        --sal: env(safe-area-inset-left, 0px);
+        --sar: env(safe-area-inset-right, 0px);
+      }
+      * {
+        box-sizing: border-box;
+        -webkit-tap-highlight-color: transparent;
+      }
+      html, body {
+        margin: 0;
+        padding: 0;
+        font-family: -apple-system, system-ui, "Hiragino Sans", sans-serif;
+        background: #f1f5f9;
+        color: #0f172a;
+        overscroll-behavior-y: contain;
+      }
+      #topbar {
+        position: sticky;
+        top: 0;
+        z-index: 10;
+        background: linear-gradient(180deg, #064e3b, #0f172a);
+        color: #fff;
+        padding: calc(14px + var(--sat)) calc(18px + var(--sar)) 16px calc(18px + var(--sal));
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+      }
+      #topbar h1 {
+        font-size: 19px;
+        margin: 0 0 2px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      #topbar .stats {
+        font-size: 13px;
+        color: #cbd5e1;
+      }
+      #back {
+        flex: none;
+        background: rgba(255, 255, 255, 0.12);
+        border-radius: 8px;
+        padding: 9px 12px;
+        font-size: 13px;
+        font-weight: 600;
+        color: #fff;
+        text-decoration: none;
+        touch-action: manipulation;
+        white-space: nowrap;
+      }
+      #root {
+        max-width: 560px;
+        margin: 0 auto;
+        padding: 14px calc(14px + var(--sar)) calc(28px + var(--sab)) calc(14px + var(--sal));
+      }
+      .month-nav {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 10px;
+      }
+      .month-nav button {
+        border: none;
+        background: #fff;
+        box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
+        border-radius: 10px;
+        width: 40px;
+        height: 40px;
+        font-size: 18px;
+        font-weight: 700;
+        color: #0f172a;
+        touch-action: manipulation;
+      }
+      .month-nav button:active {
+        background: #f1f5f9;
+      }
+      .month-nav .label {
+        font-size: 16px;
+        font-weight: 700;
+      }
+      .weekdays {
+        display: grid;
+        grid-template-columns: repeat(7, 1fr);
+        margin-bottom: 4px;
+      }
+      .weekdays span {
+        text-align: center;
+        font-size: 11.5px;
+        font-weight: 700;
+        color: #94a3b8;
+        padding: 4px 0;
+      }
+      .weekdays span:first-child { color: #dc2626; }
+      .weekdays span:last-child { color: #2563eb; }
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(7, 1fr);
+        gap: 4px;
+        margin-bottom: 18px;
+      }
+      .day {
+        aspect-ratio: 1;
+        border-radius: 10px;
+        background: #fff;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 3px;
+        font-size: 13px;
+        box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);
+        touch-action: manipulation;
+        -webkit-user-select: none;
+        user-select: none;
+        position: relative;
+      }
+      .day.empty {
+        background: transparent;
+        box-shadow: none;
+      }
+      .day.has-record {
+        font-weight: 700;
+        color: #0f172a;
+      }
+      .day.has-record:active {
+        background: #f1f5f9;
+      }
+      .day.selected {
+        outline: 2px solid #0f172a;
+      }
+      .day.today .num {
+        color: #dc2626;
+      }
+      .day .dots {
+        display: flex;
+        gap: 2px;
+      }
+      .day .dot {
+        width: 5px;
+        height: 5px;
+        border-radius: 50%;
+      }
+      .section-label {
+        font-size: 12px;
+        font-weight: 700;
+        color: #64748b;
+        letter-spacing: 0.02em;
+        margin: 4px 4px 8px;
+        text-transform: uppercase;
+      }
+      .cards {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+      .card {
+        background: #fff;
+        border-radius: 14px;
+        padding: 13px 14px;
+        box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
+        touch-action: manipulation;
+        -webkit-user-select: none;
+        user-select: none;
+      }
+      .card:active {
+        background: #f8fafc;
+      }
+      .card-top {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        margin-bottom: 8px;
+      }
+      .card-place {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        min-width: 0;
+      }
+      .spot-dot {
+        width: 9px;
+        height: 9px;
+        border-radius: 50%;
+        flex: none;
+      }
+      .card-place .name {
+        font-weight: 700;
+        font-size: 15px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .card-meta {
+        flex: none;
+        font-size: 12px;
+        color: #64748b;
+      }
+      .empty-note {
+        font-size: 12px;
+        color: #94a3b8;
+        padding: 4px;
+      }
+      .err {
+        color: #b91c1c;
+        padding: 16px;
+        font-size: 14px;
+      }
+      .loading {
+        padding: 24px 4px;
+        color: #64748b;
+        font-size: 14px;
+        text-align: center;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="topbar">
+      <div>
+        <h1>📅 カレンダー</h1>
+        <div class="stats" id="stats">読み込み中…</div>
+      </div>
+      <a id="back" href="./index.html">一覧に戻る</a>
+    </div>
+    <div id="root">
+      <div class="month-nav">
+        <button id="prevBtn" aria-label="前の月">‹</button>
+        <div class="label" id="monthLabel">-</div>
+        <button id="nextBtn" aria-label="次の月">›</button>
+      </div>
+      <div class="weekdays">
+        <span>日</span><span>月</span><span>火</span><span>水</span><span>木</span><span>金</span><span>土</span>
+      </div>
+      <div class="grid" id="grid">
+        <div class="loading">読み込み中…</div>
+      </div>
+      <div class="section-label" id="dayLabel">日付を選んでください</div>
+      <div class="cards" id="cards"></div>
+    </div>
+    <script src="./detail.js"></script>
+    <script>
+      const SITE_COLOR = {
+        オートキャンプ: "#2a78d6",
+        ソロキャンプ: "#eb6834",
+        バイクキャンプ: "#1baf7a",
+        グランピング: "#eda100",
+        車中泊: "#e87ba4",
+        その他: "#008300",
+      };
+
+      function escapeHtml(s) {
+        return String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+      }
+
+      function formatDate(d) {
+        if (!d) return "";
+        const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(d);
+        if (!m) return d;
+        return m[1] + "/" + Number(m[2]) + "/" + Number(m[3]);
+      }
+
+      function formatRange(it) {
+        const s = formatDate(it.startDate);
+        const e = formatDate(it.endDate);
+        if (e && e !== s) return s + "〜" + e;
+        return s;
+      }
+
+      function todayStr() {
+        const now = new Date();
+        return now.getFullYear() + "-" + String(now.getMonth() + 1).padStart(2, "0") + "-" + String(now.getDate()).padStart(2, "0");
+      }
+
+      function dateRange(startStr, endStr) {
+        const out = [];
+        const start = new Date(startStr + "T00:00:00");
+        const end = new Date((endStr || startStr) + "T00:00:00");
+        if (isNaN(start) || isNaN(end) || end < start) return [startStr];
+        // Cap at 30 days so a malformed record can't hang the calendar.
+        for (let d = new Date(start), n = 0; d <= end && n < 30; d.setDate(d.getDate() + 1), n++) {
+          out.push(d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0"));
+        }
+        return out;
+      }
+
+      let allItems = [];
+      let byDate = new Map(); // "YYYY-MM-DD" -> [items]
+      let cursorYear, cursorMonth; // month is 0-indexed
+      let selectedDate = null;
+
+      // A multi-night camp appears on every day it spans, not just startDate.
+      function groupByDateRange(items) {
+        const map = new Map();
+        for (const it of items) {
+          if (!it.startDate) continue;
+          for (const d of dateRange(it.startDate, it.endDate)) {
+            if (!map.has(d)) map.set(d, []);
+            map.get(d).push(it);
+          }
+        }
+        return map;
+      }
+
+      function renderCards(dateStr) {
+        const dayLabel = document.getElementById("dayLabel");
+        const cardsEl = document.getElementById("cards");
+        if (!dateStr) {
+          dayLabel.textContent = "日付を選んでください";
+          cardsEl.innerHTML = "";
+          return;
+        }
+        const items = (byDate.get(dateStr) || []).slice().sort((a, b) => (a.placeName || "").localeCompare(b.placeName || "", "ja"));
+        dayLabel.textContent = formatDate(dateStr) + " の記録";
+        if (!items.length) {
+          cardsEl.innerHTML = '<div class="empty-note">この日の記録はありません</div>';
+          return;
+        }
+        cardsEl.innerHTML = items
+          .map((it) => {
+            const dot = SITE_COLOR[it.siteType] || "#94a3b8";
+            return (
+              '<div class="card" data-id="' + escapeHtml(it.id) + '">' +
+              '<div class="card-top">' +
+              '<div class="card-place">' +
+              '<span class="spot-dot" style="background:' + dot + '"></span>' +
+              '<span class="name">' + escapeHtml(it.placeName || "") + "</span>" +
+              "</div>" +
+              '<div class="card-meta">' + escapeHtml(formatRange(it)) + "</div>" +
+              "</div>" +
+              "</div>"
+            );
+          })
+          .join("");
+        cardsEl.querySelectorAll(".card").forEach((card) => {
+          card.onclick = () => window.openRecordById(card.dataset.id);
+        });
+      }
+
+      function renderMonth() {
+        const monthLabel = document.getElementById("monthLabel");
+        const grid = document.getElementById("grid");
+        monthLabel.textContent = cursorYear + "年" + (cursorMonth + 1) + "月";
+
+        const firstDay = new Date(cursorYear, cursorMonth, 1);
+        const startWeekday = firstDay.getDay(); // 0=Sun
+        const daysInMonth = new Date(cursorYear, cursorMonth + 1, 0).getDate();
+        const today = todayStr();
+
+        let cells = "";
+        for (let i = 0; i < startWeekday; i++) {
+          cells += '<div class="day empty"></div>';
+        }
+        for (let d = 1; d <= daysInMonth; d++) {
+          const dateStr = cursorYear + "-" + String(cursorMonth + 1).padStart(2, "0") + "-" + String(d).padStart(2, "0");
+          const dayItems = byDate.get(dateStr) || [];
+          const hasRecord = dayItems.length > 0;
+          const classes = ["day"];
+          if (hasRecord) classes.push("has-record");
+          if (dateStr === today) classes.push("today");
+          if (dateStr === selectedDate) classes.push("selected");
+          const dots = dayItems
+            .slice(0, 4)
+            .map((it) => '<span class="dot" style="background:' + (SITE_COLOR[it.siteType] || "#94a3b8") + '"></span>')
+            .join("");
+          cells +=
+            '<div class="' + classes.join(" ") + '" data-date="' + dateStr + '">' +
+            '<span class="num">' + d + "</span>" +
+            (hasRecord ? '<span class="dots">' + dots + "</span>" : "") +
+            "</div>";
+        }
+        grid.innerHTML = cells;
+
+        grid.querySelectorAll(".day.has-record").forEach((cell) => {
+          cell.onclick = () => {
+            selectedDate = cell.dataset.date;
+            renderMonth();
+            renderCards(selectedDate);
+          };
+        });
+      }
+
+      function shiftMonth(delta) {
+        cursorMonth += delta;
+        if (cursorMonth < 0) {
+          cursorMonth = 11;
+          cursorYear -= 1;
+        } else if (cursorMonth > 11) {
+          cursorMonth = 0;
+          cursorYear += 1;
+        }
+        renderMonth();
+      }
+
+      async function main() {
+        allItems = await window.loadCampVisits();
+        byDate = groupByDateRange(allItems);
+        document.getElementById("stats").textContent = allItems.length + " 回のキャンプを記録中";
+
+        // Default to the month of the most recent record, falling back to
+        // today's month if there are no records yet.
+        const sorted = allItems.slice().sort((a, b) => (a.startDate < b.startDate ? 1 : -1));
+        const anchor = sorted.length ? sorted[0].startDate : todayStr();
+        const m = /^(\d{4})-(\d{2})/.exec(anchor);
+        cursorYear = m ? Number(m[1]) : new Date().getFullYear();
+        cursorMonth = m ? Number(m[2]) - 1 : new Date().getMonth();
+
+        document.getElementById("prevBtn").onclick = () => shiftMonth(-1);
+        document.getElementById("nextBtn").onclick = () => shiftMonth(1);
+
+        renderMonth();
+        renderCards(null);
+      }
+
+      main().catch((e) => {
+        document.getElementById("grid").innerHTML = '<div class="err">読み込みに失敗しました: ' + (e && e.message ? e.message : e) + "</div>";
+      });
+    </script>
+  </body>
+</html>
